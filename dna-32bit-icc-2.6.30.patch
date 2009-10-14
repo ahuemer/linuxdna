@@ -1,0 +1,344 @@
+diff -Nur linux-2.6.30.5-orig/arch/x86/boot/compressed/Makefile linux-dna-2.6.30/arch/x86/boot/compressed/Makefile
+--- linux-2.6.30.5-orig/arch/x86/boot/compressed/Makefile	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/arch/x86/boot/compressed/Makefile	2009-09-25 19:04:21.557129643 +0800
+@@ -1,3 +1,5 @@
++HOSTCC=gcc
++CC=gcc
+ #
+ # linux/arch/x86/boot/compressed/Makefile
+ #
+@@ -6,7 +8,7 @@
+ 
+ targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma head_$(BITS).o misc.o piggy.o
+ 
+-KBUILD_CFLAGS := -m$(BITS) -D__KERNEL__ $(LINUX_INCLUDE) -O2
++KBUILD_CFLAGS := -m$(BITS) -D__KERNEL__ $(LINUX_INCLUDE) -O0
+ KBUILD_CFLAGS += -fno-strict-aliasing -fPIC
+ KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
+ cflags-$(CONFIG_X86_64) := -mcmodel=small
+diff -Nur linux-2.6.30.5-orig/arch/x86/include/asm/delay.h linux-dna-2.6.30/arch/x86/include/asm/delay.h
+--- linux-2.6.30.5-orig/arch/x86/include/asm/delay.h	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/arch/x86/include/asm/delay.h	2009-09-25 19:03:59.649546105 +0800
+@@ -7,10 +7,6 @@
+  * Delay routines calling functions in arch/x86/lib/delay.c
+  */
+ 
+-/* Undefined functions to get compile-time errors */
+-extern void __bad_udelay(void);
+-extern void __bad_ndelay(void);
+-
+ extern void __udelay(unsigned long usecs);
+ extern void __ndelay(unsigned long nsecs);
+ extern void __const_udelay(unsigned long xloops);
+@@ -18,12 +14,12 @@
+ 
+ /* 0x10c7 is 2**32 / 1000000 (rounded up) */
+ #define udelay(n) (__builtin_constant_p(n) ? \
+-	((n) > 20000 ? __bad_udelay() : __const_udelay((n) * 0x10c7ul)) : \
++	( __const_udelay((n) * 0x10c7ul)) : \
+ 	__udelay(n))
+ 
+ /* 0x5 is 2**32 / 1000000000 (rounded up) */
+ #define ndelay(n) (__builtin_constant_p(n) ? \
+-	((n) > 20000 ? __bad_ndelay() : __const_udelay((n) * 5ul)) : \
++	( __const_udelay((n) * 5ul)) : \
+ 	__ndelay(n))
+ 
+ void use_tsc_delay(void);
+diff -Nur linux-2.6.30.5-orig/arch/x86/include/asm/xor_32.h linux-dna-2.6.30/arch/x86/include/asm/xor_32.h
+--- linux-2.6.30.5-orig/arch/x86/include/asm/xor_32.h	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/arch/x86/include/asm/xor_32.h	2009-09-25 19:03:59.659170310 +0800
+@@ -587,7 +587,7 @@
+ xor_sse_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
+ {
+ 	unsigned long lines = bytes >> 8;
+-	char xmm_save[16*4] ALIGN16;
++	char xmm_save[16*4];
+ 	int cr0;
+ 
+ 	XMMS_SAVE;
+diff -Nur linux-2.6.30.5-orig/arch/x86/kernel/acpi/realmode/Makefile linux-dna-2.6.30/arch/x86/kernel/acpi/realmode/Makefile
+--- linux-2.6.30.5-orig/arch/x86/kernel/acpi/realmode/Makefile	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/arch/x86/kernel/acpi/realmode/Makefile	2009-09-25 19:03:59.664126413 +0800
+@@ -28,7 +28,7 @@
+ # How to compile the 16-bit code.  Note we always compile for -march=i386,
+ # that way we can complain to the user if the CPU is insufficient.
+ # Compile with _SETUP since this is similar to the boot-time setup code.
+-KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D_WAKEUP -D__KERNEL__ \
++KBUILD_CFLAGS	:= $(LINUXINCLUDE) -w -O0 -D_SETUP -D_WAKEUP -D__KERNEL__ \
+ 		   -I$(srctree)/$(bootsrc) \
+ 		   $(cflags-y) \
+ 		   -Wall -Wstrict-prototypes \
+diff -Nur linux-2.6.30.5-orig/arch/x86/Makefile linux-dna-2.6.30/arch/x86/Makefile
+--- linux-2.6.30.5-orig/arch/x86/Makefile	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/arch/x86/Makefile	2009-09-25 19:03:59.624549821 +0800
+@@ -27,7 +27,7 @@
+                 LDFLAGS_vmlinux := --emit-relocs
+         endif
+ 
+-        KBUILD_CFLAGS += -msoft-float -mregparm=3 -freg-struct-return
++        KBUILD_CFLAGS += -mregparm=3 -freg-struct-return
+ 
+         # prevent gcc from keeping the stack 16 byte aligned
+         KBUILD_CFLAGS += $(call cc-option,-mpreferred-stack-boundary=2)
+@@ -98,8 +98,6 @@
+ 
+ # Speed up the build
+ KBUILD_CFLAGS += -pipe
+-# Workaround for a gcc prelease that unfortunately was shipped in a suse release
+-KBUILD_CFLAGS += -Wno-sign-compare
+ #
+ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
+ # prevent gcc from generating any FP code by mistake
+diff -Nur linux-2.6.30.5-orig/drivers/lguest/x86/core.c linux-dna-2.6.30/drivers/lguest/x86/core.c
+--- linux-2.6.30.5-orig/drivers/lguest/x86/core.c	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/drivers/lguest/x86/core.c	2009-09-25 19:03:59.680133572 +0800
+@@ -49,7 +49,7 @@
+ 
+ static int cpu_had_pge;
+ 
+-static struct {
++struct {
+ 	unsigned long offset;
+ 	unsigned short segment;
+ } lguest_entry;
+diff -Nur linux-2.6.30.5-orig/drivers/net/wan/sbni.c linux-dna-2.6.30/drivers/net/wan/sbni.c
+--- linux-2.6.30.5-orig/drivers/net/wan/sbni.c	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/drivers/net/wan/sbni.c	2009-09-25 19:03:59.688128837 +0800
+@@ -158,7 +158,7 @@
+ static int  num		__initdata = 0;
+ 
+ static unsigned char  rxl_tab[];
+-static u32  crc32tab[];
++u32  crc32tab[];
+ 
+ /* A list of all installed devices, for removing the driver module. */
+ static struct net_device  *sbni_cards[ SBNI_MAX_NUM_CARDS ];
+@@ -1653,7 +1653,7 @@
+ #endif	/* ASM_CRC */
+ 
+ 
+-static u32  crc32tab[] __attribute__ ((aligned(8))) = {
++u32  crc32tab[] __attribute__ ((aligned(8))) = {
+ 	0xD202EF8D,  0xA505DF1B,  0x3C0C8EA1,  0x4B0BBE37,
+ 	0xD56F2B94,  0xA2681B02,  0x3B614AB8,  0x4C667A2E,
+ 	0xDCD967BF,  0xABDE5729,  0x32D70693,  0x45D03605,
+diff -Nur linux-2.6.30.5-orig/include/linux/compiler-intel.h linux-dna-2.6.30/include/linux/compiler-intel.h
+--- linux-2.6.30.5-orig/include/linux/compiler-intel.h	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/include/linux/compiler-intel.h	2009-09-25 19:03:59.688128837 +0800
+@@ -29,3 +29,4 @@
+ #endif
+ 
+ #define uninitialized_var(x) x
++#undef __compiler_offsetof
+diff -Nur linux-2.6.30.5-orig/include/linux/kvm.h linux-dna-2.6.30/include/linux/kvm.h
+--- linux-2.6.30.5-orig/include/linux/kvm.h	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/include/linux/kvm.h	2009-09-25 19:03:59.689130879 +0800
+@@ -227,7 +227,6 @@
+ 	__u32 padding;
+ 	union {
+ 		void __user *dirty_bitmap; /* one bit per page */
+-		__u64 padding;
+ 	};
+ };
+ 
+diff -Nur linux-2.6.30.5-orig/include/linux/log2.h linux-dna-2.6.30/include/linux/log2.h
+--- linux-2.6.30.5-orig/include/linux/log2.h	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/include/linux/log2.h	2009-09-25 19:03:59.690130488 +0800
+@@ -16,12 +16,6 @@
+ #include <linux/bitops.h>
+ 
+ /*
+- * deal with unrepresentable constant logarithms
+- */
+-extern __attribute__((const, noreturn))
+-int ____ilog2_NaN(void);
+-
+-/*
+  * non-constant log of base 2 calculators
+  * - the arch may override these in asm/bitops.h if they can be implemented
+  *   more efficiently than using fls() and fls64()
+@@ -84,8 +78,6 @@
+  */
+ #define ilog2(n)				\
+ (						\
+-	__builtin_constant_p(n) ? (		\
+-		(n) < 1 ? ____ilog2_NaN() :	\
+ 		(n) & (1ULL << 63) ? 63 :	\
+ 		(n) & (1ULL << 62) ? 62 :	\
+ 		(n) & (1ULL << 61) ? 61 :	\
+@@ -150,8 +142,6 @@
+ 		(n) & (1ULL <<  2) ?  2 :	\
+ 		(n) & (1ULL <<  1) ?  1 :	\
+ 		(n) & (1ULL <<  0) ?  0 :	\
+-		____ilog2_NaN()			\
+-				   ) :		\
+ 	(sizeof(n) <= 4) ?			\
+ 	__ilog2_u32(n) :			\
+ 	__ilog2_u64(n)				\
+diff -Nur linux-2.6.30.5-orig/include/linux/module.h linux-dna-2.6.30/include/linux/module.h
+--- linux-2.6.30.5-orig/include/linux/module.h	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/include/linux/module.h	2009-09-25 19:03:59.691128037 +0800
+@@ -179,7 +179,7 @@
+  * generate a checksums for some symbols */
+ #define __CRC_SYMBOL(sym, sec)					\
+ 	extern void *__crc_##sym __attribute__((weak));		\
+-	static const unsigned long __kcrctab_##sym		\
++	const unsigned long __kcrctab_##sym		\
+ 	__used							\
+ 	__attribute__((section("__kcrctab" sec), unused))	\
+ 	= (unsigned long) &__crc_##sym;
+@@ -191,10 +191,10 @@
+ #define __EXPORT_SYMBOL(sym, sec)				\
+ 	extern typeof(sym) sym;					\
+ 	__CRC_SYMBOL(sym, sec)					\
+-	static const char __kstrtab_##sym[]			\
++	const char __kstrtab_##sym[]			\
+ 	__attribute__((section("__ksymtab_strings"), aligned(1))) \
+ 	= MODULE_SYMBOL_PREFIX #sym;                    	\
+-	static const struct kernel_symbol __ksymtab_##sym	\
++	const struct kernel_symbol __ksymtab_##sym	\
+ 	__used							\
+ 	__attribute__((section("__ksymtab" sec), unused))	\
+ 	= { (unsigned long)&sym, __kstrtab_##sym }
+diff -Nur linux-2.6.30.5-orig/include/sound/soc-dai.h linux-dna-2.6.30/include/sound/soc-dai.h
+--- linux-2.6.30.5-orig/include/sound/soc-dai.h	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/include/sound/soc-dai.h	2009-09-25 19:03:59.691128037 +0800
+@@ -221,7 +221,6 @@
+ 
+ 	/* parent codec/platform */
+ 	union {
+-		struct snd_soc_codec *codec;
+ 		struct snd_soc_platform *platform;
+ 	};
+ 
+diff -Nur linux-2.6.30.5-orig/Makefile linux-dna-2.6.30/Makefile
+--- linux-2.6.30.5-orig/Makefile	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/Makefile	2009-09-25 19:03:59.615128208 +0800
+@@ -229,10 +229,10 @@
+ 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
+ 	  else echo sh; fi ; fi)
+ 
+-HOSTCC       = gcc
+-HOSTCXX      = g++
+-HOSTCFLAGS   = -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
+-HOSTCXXFLAGS = -O2
++HOSTCC       = icc
++HOSTCXX      = icpc
++HOSTCFLAGS   = -Wall -w -Wstrict-prototypes -O3 -fomit-frame-pointer
++HOSTCXXFLAGS = -O3
+ 
+ # Decide whether to build built-in, modular, or both.
+ # Normally, just do built-in.
+@@ -316,7 +316,7 @@
+ 
+ AS		= $(CROSS_COMPILE)as
+ LD		= $(CROSS_COMPILE)ld
+-CC		= $(CROSS_COMPILE)gcc
++CC		= icc
+ CPP		= $(CC) -E
+ AR		= $(CROSS_COMPILE)ar
+ NM		= $(CROSS_COMPILE)nm
+@@ -529,15 +529,11 @@
+ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+ KBUILD_CFLAGS	+= -Os
+ else
+-KBUILD_CFLAGS	+= -O2
++KBUILD_CFLAGS	+= -O3 -w
+ endif
+ 
+ include $(srctree)/arch/$(SRCARCH)/Makefile
+ 
+-ifneq ($(CONFIG_FRAME_WARN),0)
+-KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
+-endif
+-
+ # Force gcc to behave correct even for buggy distributions
+ ifndef CONFIG_CC_STACKPROTECTOR
+ KBUILD_CFLAGS += $(call cc-option, -fno-stack-protector)
+@@ -567,18 +563,9 @@
+ NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
+ CHECKFLAGS     += $(NOSTDINC_FLAGS)
+ 
+-# warn about C99 declaration after statement
+-KBUILD_CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
+-
+-# disable pointer signed / unsigned warnings in gcc 4.0
+-KBUILD_CFLAGS += $(call cc-option,-Wno-pointer-sign,)
+-
+ # disable invalid "can't wrap" optimizations for signed / pointers
+ KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
+ 
+-# revert to pre-gcc-4.4 behaviour of .eh_frame
+-KBUILD_CFLAGS	+= $(call cc-option,-fno-dwarf2-cfi-asm)
+-
+ # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
+ # But warn user when we do so
+ warn-assign = \
+@@ -702,9 +689,9 @@
+ # Rule to link vmlinux - also used during CONFIG_KALLSYMS
+ # May be overridden by arch/$(ARCH)/Makefile
+ quiet_cmd_vmlinux__ ?= LD      $@
+-      cmd_vmlinux__ ?= $(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $@ \
++      cmd_vmlinux__ ?= $(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -x -o $@ \
+       -T $(vmlinux-lds) $(vmlinux-init)                          \
+-      --start-group $(vmlinux-main) --end-group                  \
++      --start-group $(vmlinux-main) /usr/lib/libirc_s.a --end-group                  \
+       $(filter-out $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) vmlinux.o FORCE ,$^)
+ 
+ # Generate new vmlinux version
+diff -Nur linux-2.6.30.5-orig/mm/percpu.c linux-dna-2.6.30/mm/percpu.c
+--- linux-2.6.30.5-orig/mm/percpu.c	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/mm/percpu.c	2009-09-25 19:03:59.693127916 +0800
+@@ -827,11 +827,11 @@
+ 	struct pcpu_chunk *chunk;
+ 	int slot, off;
+ 
+-	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
+-		WARN(true, "illegal size (%zu) or align (%zu) for "
+-		     "percpu allocation\n", size, align);
+-		return NULL;
+-	}
++	//if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
++	//	WARN(true, "illegal size (%zu) or align (%zu) for "
++	//	     "percpu allocation\n", size, align);
++	//	return NULL;
++//	}
+ 
+ 	mutex_lock(&pcpu_alloc_mutex);
+ 	spin_lock_irq(&pcpu_lock);
+diff -Nur linux-2.6.30.5-orig/net/unix/Makefile linux-dna-2.6.30/net/unix/Makefile
+--- linux-2.6.30.5-orig/net/unix/Makefile	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/net/unix/Makefile	2009-09-25 19:03:59.693127916 +0800
+@@ -6,3 +6,5 @@
+ 
+ unix-y			:= af_unix.o garbage.o
+ unix-$(CONFIG_SYSCTL)	+= sysctl_net_unix.o
++CFLAGS_unix.o=-no-ip -no-inline
++CFLAGS_REMOVE_unix.o=-inline-forceinline
+diff -Nur linux-2.6.30.5-orig/scripts/Makefile.build linux-dna-2.6.30/scripts/Makefile.build
+--- linux-2.6.30.5-orig/scripts/Makefile.build	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/scripts/Makefile.build	2009-09-25 19:03:59.694130072 +0800
+@@ -339,7 +339,7 @@
+ cmd_link_multi-y = $(LD) $(ld_flags) -r -o $@ $(link_multi_deps) $(cmd_secanalysis)
+ 
+ quiet_cmd_link_multi-m = LD [M]  $@
+-cmd_link_multi-m = $(cmd_link_multi-y)
++cmd_link_multi-m = $(cmd_link_multi-y) /usr/lib/libirc_s.a
+ 
+ # We would rather have a list of rules like
+ # 	foo.o: $(foo-objs)
+diff -Nur linux-2.6.30.5-orig/scripts/Makefile.modpost linux-dna-2.6.30/scripts/Makefile.modpost
+--- linux-2.6.30.5-orig/scripts/Makefile.modpost	2009-08-17 05:19:38.000000000 +0800
++++ linux-dna-2.6.30/scripts/Makefile.modpost	2009-09-25 19:03:59.694130072 +0800
+@@ -129,8 +129,8 @@
+ 
+ # Step 6), final link of the modules
+ quiet_cmd_ld_ko_o = LD [M]  $@
+-      cmd_ld_ko_o = $(LD) -r $(LDFLAGS) $(LDFLAGS_MODULE) -o $@		\
+-			  $(filter-out FORCE,$^)
++      cmd_ld_ko_o = $(LD) -r $(LDFLAGS) -s $(LDFLAGS_MODULE) -o $@		\
++			  $(filter-out FORCE,$^) /usr/lib/libirc_s.a
+ 
+ $(modules): %.ko :%.o %.mod.o FORCE
+ 	$(call if_changed,ld_ko_o)
